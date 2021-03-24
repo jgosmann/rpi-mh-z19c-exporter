@@ -443,6 +443,7 @@ version = "0.1.0"
 dependencies = [
  "embedded-hal",
  "lazy_static",
+ "mh-z19c",
  "nb 1.0.0",
  "prometheus",
  "protobuf",
@@ -964,6 +965,17 @@ name = "memchr"
 version = "2.3.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0ee1c47aaa256ecabcaea351eae4a9b01ef39ed810004e298d2511ed284b1525"
+
+[[package]]
+name = "mh-z19c"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ccee860cbd3f82b2e0031de49eb1929ab1dd96aa74c8afc365d650b75057259e"
+dependencies = [
+ "embedded-hal",
+ "lazy_static",
+ "nb 1.0.0",
+]
 
 [[package]]
 name = "nb"
