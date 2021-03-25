@@ -84,3 +84,48 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     Ok(())
 }
+
+#[cfg(test)]
+pub mod tests {
+    use super::*;
+    use std::collections::VecDeque;
+    use std::fmt::{self, Display, Formatter};
+
+    #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+    pub struct MockError;
+
+    impl Display for MockError {
+        fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), fmt::Error> {
+            f.write_str("MockError")
+        }
+    }
+
+    impl std::error::Error for MockError {}
+
+    pub struct MockCo2Sensor {
+        pub co2_ppm: VecDeque<nb::Result<u16, MockError>>,
+    }
+
+    impl Co2Sensor for MockCo2Sensor {
+        type Error = MockError;
+
+        fn read_co2_ppm(&mut self) -> nb::Result<u16, Self::Error> {
+            self.co2_ppm
+                .pop_front()
+                .unwrap_or(Err(nb::Error::Other(MockError)))
+        }
+    }
+
+    #[tokio::test]
+    async fn test_co2_sensing_worker_normal_operation() {
+        let (tx, mut rx) = measurement_channel();
+        let co2_sensor = MockCo2Sensor {
+            co2_ppm: VecDeque::from(vec![Ok(800)]),
+        };
+
+        tokio::spawn(async move { co2_sensing_worker(co2_sensor, tx).await });
+
+        rx.trigger_measurement();
+        assert_eq!(rx.changed().await.unwrap(), 800);
+    }
+}
