@@ -22,23 +22,29 @@ impl Co2Sensor for MhZ19C<'_, Uart, rppal::uart::Error> {
     }
 }
 
-async fn co2_sensing_worker<C: Co2Sensor>(
-    mut co2_sensor: C,
-    sender: MeasurementSender,
-) -> Result<(), C::Error> {
+async fn co2_sensing_worker<C: Co2Sensor>(mut co2_sensor: C, sender: MeasurementSender) -> C {
     loop {
         sender.notified().await;
-        loop {
-            match co2_sensor.read_co2_ppm() {
-                Ok(value) => {
-                    match sender.send_measurement(value) {
-                        Ok(_) => break,
-                        Err(_) => (), // FIXME is this desired?
-                    }
+        match async_nb(|| co2_sensor.read_co2_ppm()).await {
+            Ok(value) => {
+                if sender.send_measurement(value).is_err() {
+                    return co2_sensor;
                 }
-                Err(nb::Error::Other(err)) => return Err(err), // FIXME log and continue?
-                Err(nb::Error::WouldBlock) => (),
             }
+            Err(err) => (), // FIXME handle
+        }
+    }
+}
+
+async fn async_nb<F, T, E>(mut func: F) -> Result<T, E>
+where
+    F: FnMut() -> nb::Result<T, E>,
+{
+    loop {
+        match func() {
+            Err(nb::Error::WouldBlock) => (), // FIXME should use a delay?
+            Err(nb::Error::Other(err)) => return Err(err),
+            Ok(result) => return Ok(result),
         }
     }
 }
