@@ -2,6 +2,7 @@ use co2_metrics_exporter::measurement_channel::{
     measurement_channel, MeasurementReceiver, MeasurementSender,
 };
 use mh_z19c::{self, MhZ19C};
+use nb::block;
 use prometheus::{self, Encoder};
 use protobuf;
 use rppal::uart::{Parity, Uart};
@@ -25,26 +26,13 @@ impl Co2Sensor for MhZ19C<'_, Uart, rppal::uart::Error> {
 async fn co2_sensing_worker<C: Co2Sensor>(mut co2_sensor: C, sender: MeasurementSender) -> C {
     loop {
         sender.notified().await;
-        match async_nb(|| co2_sensor.read_co2_ppm()).await {
+        match block!(co2_sensor.read_co2_ppm()) {
             Ok(value) => {
                 if sender.send_measurement(value).is_err() {
                     return co2_sensor;
                 }
             }
             Err(err) => (), // FIXME handle
-        }
-    }
-}
-
-async fn async_nb<F, T, E>(mut func: F) -> Result<T, E>
-where
-    F: FnMut() -> nb::Result<T, E>,
-{
-    loop {
-        match func() {
-            Err(nb::Error::WouldBlock) => (), // FIXME should use a delay?
-            Err(nb::Error::Other(err)) => return Err(err),
-            Ok(result) => return Ok(result),
         }
     }
 }
