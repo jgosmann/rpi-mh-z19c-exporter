@@ -3,11 +3,15 @@ use co2_metrics_exporter::measurement_channel::{
 };
 use mh_z19c::{self, MhZ19C};
 use nb::block;
+use prometheus::proto::{Gauge, Metric, MetricFamily, MetricType};
 use prometheus::{self, Encoder};
 use protobuf;
 use rppal::uart::{Parity, Uart};
+use std::convert::{From, Into};
+use std::fmt::{self, Display, Formatter};
 use std::sync::Arc;
 use tide;
+use tokio::sync::watch;
 use tokio::task;
 
 trait Co2Sensor {
@@ -41,31 +45,64 @@ async fn serve_metrics(
     req: tide::Request<MeasurementReceiver<Result<u16, Arc<mh_z19c::Error<rppal::uart::Error>>>>>,
 ) -> tide::Result {
     req.state().trigger_measurement();
-    match req.state().clone().changed().await {
-        Ok(value) => match &*value {
-            Ok(value) => {
-                let mut metric_family = prometheus::proto::MetricFamily::new();
-                metric_family.set_name("co2_ppm".into());
-                metric_family.set_help("CO2 concnentration [ppm]".into());
-                metric_family.set_field_type(prometheus::proto::MetricType::GAUGE);
-                let mut gauge = prometheus::proto::Gauge::new();
-                gauge.set_value(*value as f64);
-                let mut metric = prometheus::proto::Metric::new();
-                metric.set_gauge(gauge);
-                metric_family.set_metric(protobuf::RepeatedField::from_slice(&[metric]));
+    let value = req
+        .state()
+        .clone()
+        .changed()
+        .await
+        .map_err(ServeMetricsInternalError::from)?
+        .clone()
+        .map_err(ServeMetricsInternalError::from)?;
 
-                let mut buffer = vec![];
-                let encoder = prometheus::TextEncoder::new();
-                encoder.encode(&[metric_family], &mut buffer)?;
-                Ok(format!("{}", String::from_utf8(buffer)?).into())
-            }
-            Err(value) => Ok("error TODO".into()),
-        },
-        Err(err) => Err(tide::Error::from_str(
-            tide::StatusCode::InternalServerError,
-            err,
-        )),
+    let mut buffer = vec![];
+    let encoder = prometheus::TextEncoder::new();
+    encoder.encode(&[co2_metric(value as f64)], &mut buffer)?;
+    Ok(format!("{}", String::from_utf8(buffer)?).into())
+}
+
+#[derive(Clone, Debug)]
+enum ServeMetricsInternalError {
+    SensorError(Arc<mh_z19c::Error<rppal::uart::Error>>),
+    WorkerDied,
+}
+
+impl From<Arc<mh_z19c::Error<rppal::uart::Error>>> for ServeMetricsInternalError {
+    fn from(err: Arc<mh_z19c::Error<rppal::uart::Error>>) -> Self {
+        Self::SensorError(err)
     }
+}
+
+impl From<watch::error::RecvError> for ServeMetricsInternalError {
+    fn from(_: watch::error::RecvError) -> Self {
+        Self::WorkerDied
+    }
+}
+
+impl Display for ServeMetricsInternalError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), fmt::Error> {
+        use ServeMetricsInternalError::*;
+        match self {
+            SensorError(err) => err.fmt(f),
+            WorkerDied => f.write_str("the worker for reading measurements died"),
+        }
+    }
+}
+
+impl std::error::Error for ServeMetricsInternalError {}
+
+fn co2_metric(value: f64) -> MetricFamily {
+    let mut gauge = Gauge::new();
+    gauge.set_value(value);
+
+    let mut metric = Metric::new();
+    metric.set_gauge(gauge);
+
+    let mut metric_family = MetricFamily::new();
+    metric_family.set_name("co2_ppm".into());
+    metric_family.set_help("CO2 concentration [ppm]".into());
+    metric_family.set_field_type(MetricType::GAUGE);
+    metric_family.set_metric(protobuf::RepeatedField::from_slice(&[metric]));
+    metric_family
 }
 
 #[tokio::main(flavor = "current_thread")]
@@ -117,7 +154,7 @@ pub mod tests {
 
     #[tokio::test]
     async fn test_co2_sensing_worker_normal_operation() {
-        let (tx, mut rx) = measurement_channel(0u16);
+        let (tx, mut rx) = measurement_channel(Ok(0u16));
         let co2_sensor = MockCo2Sensor {
             co2_ppm: VecDeque::from(vec![Ok(800)]),
         };
