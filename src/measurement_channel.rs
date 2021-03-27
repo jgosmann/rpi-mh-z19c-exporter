@@ -1,8 +1,8 @@
 use std::sync::Arc;
 use tokio::sync::{watch, Notify};
 
-pub fn measurement_channel() -> (MeasurementSender, MeasurementReceiver) {
-    let (tx, rx) = watch::channel(0u16);
+pub fn measurement_channel<T>(initial_value: T) -> (MeasurementSender<T>, MeasurementReceiver<T>) {
+    let (tx, rx) = watch::channel(initial_value);
     let notifier = Arc::new(Notify::new());
     let sender = MeasurementSender {
         notifier: notifier.clone(),
@@ -16,34 +16,34 @@ pub fn measurement_channel() -> (MeasurementSender, MeasurementReceiver) {
 }
 
 #[derive(Clone, Debug)]
-pub struct MeasurementReceiver {
+pub struct MeasurementReceiver<T> {
     notifier: Arc<Notify>,
-    receiver: watch::Receiver<u16>,
+    receiver: watch::Receiver<T>,
 }
 
-impl MeasurementReceiver {
+impl<T> MeasurementReceiver<T> {
     pub fn trigger_measurement(&self) {
         self.notifier.notify_one()
     }
 
-    pub async fn changed(&mut self) -> Result<u16, watch::error::RecvError> {
+    pub async fn changed(&mut self) -> Result<watch::Ref<'_, T>, watch::error::RecvError> {
         self.receiver.changed().await?;
-        Ok(*self.receiver.borrow())
+        Ok(self.receiver.borrow())
     }
 }
 
 #[derive(Debug)]
-pub struct MeasurementSender {
+pub struct MeasurementSender<T> {
     notifier: Arc<Notify>,
-    sender: watch::Sender<u16>,
+    sender: watch::Sender<T>,
 }
 
-impl MeasurementSender {
+impl<T> MeasurementSender<T> {
     pub async fn notified(&self) {
         self.notifier.notified().await
     }
 
-    pub fn send_measurement(&self, value: u16) -> Result<(), watch::error::SendError<u16>> {
+    pub fn send_measurement(&self, value: T) -> Result<(), watch::error::SendError<T>> {
         self.sender.send(value)
     }
 }
@@ -57,7 +57,7 @@ pub mod tests {
     async fn test_measurement_channel() {
         let timeout_duration = Duration::from_millis(10);
 
-        let (tx, mut rx) = measurement_channel();
+        let (tx, mut rx) = measurement_channel(0u16);
 
         rx.trigger_measurement();
         rx.trigger_measurement(); // Should only trigger one measurement
