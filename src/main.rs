@@ -4,15 +4,20 @@ use co2_metrics_exporter::measurement_channel::{
 use co2_metrics_exporter::middleware::LogErrors;
 use libsystemd::daemon::{self, NotifyState};
 use mh_z19c::{self, MhZ19C};
-use nb::block;
 use prometheus::proto::{Gauge, Metric, MetricFamily, MetricType};
 use prometheus::{self, Encoder};
 use protobuf;
 use rppal::uart::{Parity, Uart};
-use std::convert::{From, Into};
-use std::fmt::{self, Display, Formatter};
 use std::net::{SocketAddr, ToSocketAddrs};
 use std::sync::Arc;
+use std::{
+    convert::{From, Into},
+    time::Duration,
+};
+use std::{
+    fmt::{self, Debug, Display, Formatter},
+    time::Instant,
+};
 use tide::{self};
 use tokio::sync::watch;
 use tokio::task;
@@ -33,19 +38,57 @@ impl Co2Sensor for MhZ19C<'_, Uart, rppal::uart::Error> {
 
 async fn co2_sensing_worker<C: Co2Sensor>(
     mut co2_sensor: C,
-    sender: MeasurementSender<Result<u16, C::Error>>,
+    sender: MeasurementSender<Result<u16, Co2SensingWorkerError<C::Error>>>,
 ) -> C {
     loop {
         sender.notified().await;
-        let value = block!(co2_sensor.read_co2_ppm());
+        let value = block_with_timeout(Duration::from_millis(200), || co2_sensor.read_co2_ppm())
+            .map_err(|err| match err {
+                nb::Error::WouldBlock => Co2SensingWorkerError::TimedOut,
+                nb::Error::Other(err) => Co2SensingWorkerError::SensorError(err),
+            });
         if sender.send_measurement(value).is_err() {
             return co2_sensor;
         }
     }
 }
 
+#[derive(Clone, Debug)]
+enum Co2SensingWorkerError<C> {
+    TimedOut,
+    SensorError(C),
+}
+
+impl<C: Display> Display for Co2SensingWorkerError<C> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        use Co2SensingWorkerError::*;
+        match self {
+            TimedOut => f.write_str("communication timeout"),
+            SensorError(err) => err.fmt(f),
+        }
+    }
+}
+
+impl<C: Debug + Display> std::error::Error for Co2SensingWorkerError<C> {}
+
+type MhZ19CWorkerError = Co2SensingWorkerError<Arc<mh_z19c::Error<rppal::uart::Error>>>;
+
+fn block_with_timeout<F, T, E>(timeout: Duration, mut func: F) -> nb::Result<T, E>
+where
+    F: FnMut() -> nb::Result<T, E>,
+{
+    let abort_at = Instant::now() + timeout;
+    while Instant::now() < abort_at {
+        match func() {
+            Err(nb::Error::WouldBlock) => (),
+            result => return result,
+        }
+    }
+    Err(nb::Error::WouldBlock)
+}
+
 async fn serve_metrics(
-    req: tide::Request<MeasurementReceiver<Result<u16, Arc<mh_z19c::Error<rppal::uart::Error>>>>>,
+    req: tide::Request<MeasurementReceiver<Result<u16, MhZ19CWorkerError>>>,
 ) -> tide::Result {
     req.state().trigger_measurement();
     let value = req
@@ -65,12 +108,12 @@ async fn serve_metrics(
 
 #[derive(Clone, Debug)]
 enum ServeMetricsInternalError {
-    SensorError(Arc<mh_z19c::Error<rppal::uart::Error>>),
+    SensorError(MhZ19CWorkerError),
     WorkerDied,
 }
 
-impl From<Arc<mh_z19c::Error<rppal::uart::Error>>> for ServeMetricsInternalError {
-    fn from(err: Arc<mh_z19c::Error<rppal::uart::Error>>) -> Self {
+impl From<MhZ19CWorkerError> for ServeMetricsInternalError {
+    fn from(err: MhZ19CWorkerError) -> Self {
         Self::SensorError(err)
     }
 }
@@ -85,7 +128,7 @@ impl Display for ServeMetricsInternalError {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), fmt::Error> {
         use ServeMetricsInternalError::*;
         match self {
-            SensorError(err) => err.fmt(f),
+            SensorError(err) => Display::fmt(err, f),
             WorkerDied => f.write_str("the worker for reading measurements died"),
         }
     }
@@ -187,6 +230,6 @@ pub mod tests {
         tokio::spawn(async move { co2_sensing_worker(co2_sensor, tx).await });
 
         rx.trigger_measurement();
-        assert_eq!(rx.changed().await.unwrap().unwrap(), 800);
+        assert_eq!(rx.changed().await.unwrap().clone().unwrap(), 800);
     }
 }
