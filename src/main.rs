@@ -1,6 +1,8 @@
 use co2_metrics_exporter::measurement_channel::{
     measurement_channel, MeasurementReceiver, MeasurementSender,
 };
+use co2_metrics_exporter::middleware::LogErrors;
+use libsystemd::daemon::{self, NotifyState};
 use mh_z19c::{self, MhZ19C};
 use nb::block;
 use prometheus::proto::{Gauge, Metric, MetricFamily, MetricType};
@@ -9,8 +11,9 @@ use protobuf;
 use rppal::uart::{Parity, Uart};
 use std::convert::{From, Into};
 use std::fmt::{self, Display, Formatter};
+use std::net::{SocketAddr, ToSocketAddrs};
 use std::sync::Arc;
-use tide;
+use tide::{self};
 use tokio::sync::watch;
 use tokio::task;
 
@@ -107,18 +110,40 @@ fn co2_metric(value: f64) -> MetricFamily {
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let uart_path = std::env::var("CO2_SENSOR_PATH").unwrap_or("/dev/ttyAMA0".into());
+    let listen_addrs: Vec<SocketAddr> = std::env::var("CO2_METRICS_LISTEN_ADDRS")
+        .unwrap_or("localhost:9119".into())
+        .split(' ')
+        .map(|addr| addr.to_socket_addrs())
+        .collect::<std::io::Result<Vec<_>>>()?
+        .into_iter()
+        .flatten()
+        .collect();
+
+    println!("Starting co2-metrics-exporter ...");
+    println!("Using sensor at: {}", uart_path);
+    print!("Listening on addresses:");
+    for addr in &listen_addrs {
+        print!(" {}", addr)
+    }
+    println!("");
+
     let (tx, rx) = measurement_channel(Ok(0u16));
 
-    let co2sensor = MhZ19C::new(Uart::with_path("/dev/ttyAMA0", 9600, Parity::None, 8, 1)?);
+    let co2sensor = MhZ19C::new(Uart::with_path(uart_path, 9600, Parity::None, 8, 1)?);
     task::spawn(async move { co2_sensing_worker(co2sensor, tx).await });
 
     let mut app = tide::with_state(rx);
+    app.with(LogErrors);
     app.at("/metrics").get(serve_metrics);
-    println!("Spawning server ...");
-    app.listen("0.0.0.0:9119").await?;
-    println!("Shutdown.");
+    let app_process = app.listen(listen_addrs);
 
-    Ok(())
+    println!("Ready.");
+    if daemon::booted() {
+        daemon::notify(true, &[NotifyState::Ready])?;
+    }
+
+    Ok(app_process.await?)
 }
 
 #[cfg(test)]
