@@ -162,6 +162,6 @@ pub mod tests {
         tokio::spawn(async move { co2_sensing_worker(co2_sensor, tx).await });
 
         rx.trigger_measurement();
-        assert_eq!(rx.changed().await.unwrap(), 800);
+        assert_eq!(rx.changed().await.unwrap().unwrap(), 800);
     }
 }

@@ -66,7 +66,7 @@ pub mod tests {
 
         tx.send_measurement(42).unwrap();
         assert_eq!(
-            timeout(timeout_duration, rx.changed())
+            *timeout(timeout_duration, rx.changed())
                 .await
                 .unwrap()
                 .unwrap(),
