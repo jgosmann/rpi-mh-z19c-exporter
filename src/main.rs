@@ -155,7 +155,7 @@ fn co2_metric(value: f64) -> MetricFamily {
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let uart_path = std::env::var("CO2_SENSOR_PATH").unwrap_or("/dev/ttyAMA0".into());
     let listen_addrs: Vec<SocketAddr> = std::env::var("CO2_METRICS_LISTEN_ADDRS")
-        .unwrap_or("localhost:9119".into())
+        .unwrap_or("localhost:1202".into())
         .split(' ')
         .map(|addr| addr.to_socket_addrs())
         .collect::<std::io::Result<Vec<_>>>()?
