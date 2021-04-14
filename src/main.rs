@@ -163,7 +163,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .flatten()
         .collect();
 
-    println!("Starting co2-metrics-exporter ...");
+    println!(
+        "Starting co2-metrics-exporter v{} ...",
+        env!("CARGO_PKG_VERSION")
+    );
     println!("Using sensor at: {}", uart_path);
     print!("Listening on addresses:");
     for addr in &listen_addrs {
