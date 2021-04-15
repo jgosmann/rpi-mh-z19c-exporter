@@ -17,3 +17,6 @@ protobuf = "2.22.0"
 rppal = { version = "0.11.3", features = ["hal"] }
 tide = "0.16.0"
 tokio = { version = "1.2.0", features = ["macros", "rt", "sync", "time"] }
+
+[dev-dependencies]
+tide-testing = "0.1.3"
