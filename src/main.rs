@@ -33,7 +33,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let config = Config::load()?;
 
     println!(
-        "Starting co2-metrics-exporter v{} ...",
+        "Starting rpi-mh-z19c-exporter v{} ...",
         env!("CARGO_PKG_VERSION")
     );
     print!("{}", config);
