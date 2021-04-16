@@ -1,6 +1,6 @@
 [package]
 name = "rpi-mh-z19c-exporter"
-version = "0.1.0"
+version = "0.1.0-dev"
 authors = ["Jan Gosmann <jan@hyper-world.de>"]
 edition = "2018"
 license = "MIT OR Apache-2.0"
