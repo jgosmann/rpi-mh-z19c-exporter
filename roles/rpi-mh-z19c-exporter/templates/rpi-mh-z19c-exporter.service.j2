@@ -1,0 +1,17 @@
+[Unit]
+Description=Export CO2 concentration measured with a Winsen MH-Z19C sensor on a Raspberry Pi to Prometheus.
+
+[Service]
+Type=notify
+ExecStart={{ binary_path }}
+Environment="CO2_SENSOR_PATH={{ sensor_path }}"
+Environment="CO2_METRICS_LISTEN_ADDRS={{ listen_addrs | join(' ') }}"
+Restart=on-failure
+User=rpi-mh-z19c-exporter
+PrivateTmp=yes
+ProtectSystem=full
+ProtectHome=read-only
+NoNewPrivileges=yes
+
+[Install]
+WantedBy=default.target

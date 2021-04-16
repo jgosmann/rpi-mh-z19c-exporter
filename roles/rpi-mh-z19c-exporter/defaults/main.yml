@@ -1,0 +1,5 @@
+---
+
+binary_path: rpi-mh-z19c-exporter
+listen_addrs: ["localhost:1202"]
+sensor_path: /dev/ttyAMA0

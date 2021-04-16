@@ -1,0 +1,9 @@
+---
+galaxy_info:
+  role_name: rpi-mh-z19c-exporter
+  author: Jan Gosmann
+  description: Export CO2 concentration measured with a Winsen MH-Z19C sensor on a Raspberry Pi to Prometheus.
+  license: MIT or Apache 2.0
+  min_ansible_version: 2.9
+
+dependencies: []

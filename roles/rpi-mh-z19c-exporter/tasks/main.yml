@@ -1,0 +1,26 @@
+---
+- name: Provide rpi-mh-z19c-exporter user and group
+  block:
+    - group:
+        name: rpi-mh-z19c-exporter
+        system: yes
+    - user:
+        name: rpi-mh-z19c-exporter
+        system: yes
+        group: rpi-mh-z19c-exporter
+        groups: [dialout]
+
+- name: Install systemd service
+  template:
+    src: rpi-mh-z19c-exporter.service.j2
+    dest: /etc/systemd/system/rpi-mh-z19c-exporter.service
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Activate systemd service
+  systemd:
+    name: rpi-mh-z19c-exporter.service
+    daemon_reload: yes
+    enabled: yes
+    state: restarted

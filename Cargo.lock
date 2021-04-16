@@ -465,23 +465,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "co2-metrics-exporter"
-version = "0.1.0"
-dependencies = [
- "embedded-hal",
- "lazy_static",
- "libsystemd",
- "mh-z19c",
- "nb 1.0.0",
- "prometheus",
- "protobuf",
- "rppal",
- "tide",
- "tide-testing",
- "tokio",
-]
-
-[[package]]
 name = "concurrent-queue"
 version = "1.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1446,6 +1429,23 @@ name = "route-recognizer"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "56770675ebc04927ded3e60633437841581c285dc6236109ea25fbf3beb7b59e"
+
+[[package]]
+name = "rpi-mh-z19c-exporter"
+version = "0.1.0"
+dependencies = [
+ "embedded-hal",
+ "lazy_static",
+ "libsystemd",
+ "mh-z19c",
+ "nb 1.0.0",
+ "prometheus",
+ "protobuf",
+ "rppal",
+ "tide",
+ "tide-testing",
+ "tokio",
+]
 
 [[package]]
 name = "rppal"

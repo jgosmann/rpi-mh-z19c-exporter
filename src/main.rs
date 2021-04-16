@@ -80,8 +80,8 @@ struct Config {
 impl Config {
     fn load() -> Result<Self, Box<dyn std::error::Error>> {
         Ok(Self {
-            uart_path: std::env::var("CO2_SENSOR_PATH").unwrap_or("/dev/ttyAMA0".into()),
-            listen_addrs: std::env::var("CO2_METRICS_LISTEN_ADDRS")
+            uart_path: std::env::var("RPI_MHZ19C_UART_PATH").unwrap_or("/dev/ttyAMA0".into()),
+            listen_addrs: std::env::var("RPI_MHZ19C_EXPORTER_LISTEN_ADDRS")
                 .unwrap_or("localhost:1202".into())
                 .split(' ')
                 .map(|addr| addr.to_socket_addrs())
