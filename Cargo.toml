@@ -1,13 +1,13 @@
 [package]
 name = "rpi-mh-z19c-exporter"
-version = "0.1.1-dev"
+version = "0.1.2"
 authors = ["Jan Gosmann <jan@hyper-world.de>"]
 edition = "2018"
 license = "MIT OR Apache-2.0"
 description = "Export CO2 concentration measured with a Winsen MH-Z19C sensor on a Raspberry Pi to Prometheus."
 repository = "https://github.com/jgosmann/rpi-mh-z19c-exporter"
 readme = "README.md"
-keywords = ["CO2", "sensor", "MH-Z19C", "Raspberry Pi", "Prometheus"]
+keywords = ["CO2", "sensor", "MH-Z19C", "Raspberry", "Prometheus"]
 categories = ["embedded"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
