@@ -39,7 +39,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     print!("{}", config);
 
     let (tx, rx) = measurement_channel(Ok(0u16));
-    spawn_worker(config.uart_path, tx)?;
+    let worker_process = spawn_worker(config.uart_path, tx)?;
 
     let app = create_app(rx);
     let server_process = app.listen(config.listen_addrs);
@@ -49,7 +49,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         daemon::notify(true, &[NotifyState::Ready])?;
     }
 
-    Ok(server_process.await?)
+    return tokio::select! {
+        result = worker_process => {
+            result?;
+            Ok(())
+        }
+        result = server_process => {
+            result?;
+            Ok(())
+        }
+    };
 }
 
 fn spawn_worker<P: AsRef<Path>>(
