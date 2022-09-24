@@ -31,12 +31,12 @@ pub async fn co2_sensing_worker<C: Co2Sensor>(
             Ok(value) => {
                 let send_result = sender.send_measurement(value);
                 if let Err(send_error) = send_result {
-                    eprintln!("foo {}", send_error);
+                    eprintln!("internal channel send error: {}", send_error);
                     return co2_sensor;
                 }
             }
             Err(err) => {
-                eprintln!("bar {}", err);
+                eprintln!("sensor error: {}", err);
                 return co2_sensor;
             }
         }
