@@ -38,7 +38,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     );
     print!("{}", config);
 
-    let (tx, rx) = measurement_channel(Ok(0u16));
+    let (tx, rx) = measurement_channel(0u16);
     let worker_process = spawn_worker(config.uart_path, tx)?;
 
     let app = create_app(rx);
@@ -63,7 +63,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 fn spawn_worker<P: AsRef<Path>>(
     uart_path: P,
-    tx: Co2MeasurementSender<RpiMhZ19C<'static>>,
+    tx: Co2MeasurementSender,
 ) -> Result<JoinHandle<RpiMhZ19C<'static>>, Box<dyn std::error::Error>> {
     let co2sensor = MhZ19C::new(Uart::with_path(uart_path, 9600, Parity::None, 8, 1)?);
     Ok(task::spawn(async move {
@@ -71,9 +71,7 @@ fn spawn_worker<P: AsRef<Path>>(
     }))
 }
 
-fn create_app(
-    rx: Co2MeasurementReceiver<RpiMhZ19C<'static>>,
-) -> tide::Server<Co2MeasurementReceiver<RpiMhZ19C<'static>>> {
+fn create_app(rx: Co2MeasurementReceiver) -> tide::Server<Co2MeasurementReceiver> {
     let mut app = tide::with_state(rx);
     app.with(LogErrors);
     app.at("/metrics").get(serve_metrics);
@@ -116,9 +114,9 @@ impl Display for Config {
 
 #[cfg(test)]
 mod tests {
-    use super::{create_app, RpiMhZ19C};
+    use super::create_app;
     use crate::worker::measurement_channel::measurement_channel;
-    use crate::worker::{self, Co2MeasurementSender, Co2Sensor};
+    use crate::worker::Co2MeasurementSender;
     use tide_testing::TideTestingExt;
 
     struct MockWorker {
@@ -126,15 +124,12 @@ mod tests {
     }
 
     impl MockWorker {
-        fn run(
-            tx: Co2MeasurementSender<RpiMhZ19C<'static>>,
-            value: Result<u16, worker::Error<<RpiMhZ19C as Co2Sensor>::Error>>,
-        ) -> Self {
+        fn run(tx: Co2MeasurementSender, value: u16) -> Self {
             Self {
                 handle: tokio::spawn(async move {
                     loop {
                         tx.notified().await;
-                        if tx.send_measurement(value.clone()).is_err() {
+                        if tx.send_measurement(value).is_err() {
                             return;
                         }
                     }
@@ -151,9 +146,9 @@ mod tests {
 
     #[tokio::test]
     async fn test_serving_metrics() {
-        let (tx, rx) = measurement_channel(Ok(0u16));
+        let (tx, rx) = measurement_channel(0u16);
         let app = create_app(rx);
-        let _worker = MockWorker::run(tx, Ok(42));
+        let _worker = MockWorker::run(tx, 42);
 
         assert!(app
             .get("/metrics")
@@ -161,17 +156,5 @@ mod tests {
             .await
             .unwrap()
             .contains("\n# TYPE co2_ppm gauge\nco2_ppm 42\n"));
-    }
-
-    #[tokio::test]
-    async fn test_internal_server_error() {
-        let (tx, rx) = measurement_channel(Ok(0u16));
-        let app = create_app(rx);
-        let _worker = MockWorker::run(tx, Err(worker::Error::TimedOut));
-
-        assert_eq!(
-            app.get("/metrics").await.unwrap().status(),
-            tide::http::StatusCode::InternalServerError
-        );
     }
 }

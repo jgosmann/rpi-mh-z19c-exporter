@@ -7,19 +7,18 @@ use std::{
 
 use measurement_channel::{MeasurementReceiver, MeasurementSender};
 
-pub type Co2MeasurementReceiver<C> =
-    MeasurementReceiver<Result<u16, Error<<C as Co2Sensor>::Error>>>;
-pub type Co2MeasurementSender<C> = MeasurementSender<Result<u16, Error<<C as Co2Sensor>::Error>>>;
+pub type Co2MeasurementReceiver = MeasurementReceiver<u16>;
+pub type Co2MeasurementSender = MeasurementSender<u16>;
 
 pub trait Co2Sensor {
-    type Error;
+    type Error: Display;
 
     fn read_co2_ppm(&mut self) -> nb::Result<u16, Self::Error>;
 }
 
 pub async fn co2_sensing_worker<C: Co2Sensor>(
     mut co2_sensor: C,
-    sender: MeasurementSender<Result<u16, Error<C::Error>>>,
+    sender: MeasurementSender<u16>,
 ) -> C {
     loop {
         sender.notified().await;
@@ -28,8 +27,18 @@ pub async fn co2_sensing_worker<C: Co2Sensor>(
                 nb::Error::WouldBlock => Error::TimedOut,
                 nb::Error::Other(err) => Error::SensorError(err),
             });
-        if sender.send_measurement(value).is_err() {
-            return co2_sensor;
+        match value {
+            Ok(value) => {
+                let send_result = sender.send_measurement(value);
+                if let Err(send_error) = send_result {
+                    eprintln!("foo {}", send_error);
+                    return co2_sensor;
+                }
+            }
+            Err(err) => {
+                eprintln!("bar {}", err);
+                return co2_sensor;
+            }
         }
     }
 }
@@ -100,7 +109,7 @@ pub mod tests {
 
     #[tokio::test]
     async fn test_co2_sensing_worker_normal_operation() {
-        let (tx, mut rx) = measurement_channel(Ok(0u16));
+        let (tx, mut rx) = measurement_channel(0u16);
         let co2_sensor = MockCo2Sensor {
             co2_ppm: VecDeque::from(vec![Ok(800)]),
         };
@@ -108,6 +117,6 @@ pub mod tests {
         tokio::spawn(async move { co2_sensing_worker(co2_sensor, tx).await });
 
         rx.trigger_measurement();
-        assert_eq!(rx.changed().await.unwrap().clone().unwrap(), 800);
+        assert_eq!(*rx.changed().await.unwrap(), 800);
     }
 }
