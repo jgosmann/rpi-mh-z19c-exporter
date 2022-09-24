@@ -52,7 +52,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     return tokio::select! {
         result = worker_process => {
             result?;
-            Ok(())
+            Err("worker process died".into())
         }
         result = server_process => {
             result?;

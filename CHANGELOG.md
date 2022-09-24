@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 * Error message strings
-
+* Exit with non-zero exit code if worker process dies
 
 ## [0.2.0] - 2022-09-24
 
