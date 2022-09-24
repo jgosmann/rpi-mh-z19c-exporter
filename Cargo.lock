@@ -1432,7 +1432,7 @@ checksum = "56770675ebc04927ded3e60633437841581c285dc6236109ea25fbf3beb7b59e"
 
 [[package]]
 name = "rpi-mh-z19c-exporter"
-version = "0.1.4"
+version = "0.2.0"
 dependencies = [
  "embedded-hal",
  "lazy_static",

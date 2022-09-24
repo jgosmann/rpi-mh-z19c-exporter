@@ -1,14 +1,14 @@
 [package]
-name = "rpi-mh-z19c-exporter"
-version = "0.1.4"
 authors = ["Jan Gosmann <jan@hyper-world.de>"]
-edition = "2018"
-license = "MIT OR Apache-2.0"
-description = "Export CO2 concentration measured with a Winsen MH-Z19C sensor on a Raspberry Pi to Prometheus."
-repository = "https://github.com/jgosmann/rpi-mh-z19c-exporter"
-readme = "README.md"
-keywords = ["CO2", "sensor", "MH-Z19C", "Raspberry", "Prometheus"]
 categories = ["embedded"]
+description = "Export CO2 concentration measured with a Winsen MH-Z19C sensor on a Raspberry Pi to Prometheus."
+edition = "2018"
+keywords = ["CO2", "sensor", "MH-Z19C", "Raspberry", "Prometheus"]
+license = "MIT OR Apache-2.0"
+name = "rpi-mh-z19c-exporter"
+readme = "README.md"
+repository = "https://github.com/jgosmann/rpi-mh-z19c-exporter"
+version = "0.2.0"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -16,13 +16,13 @@ categories = ["embedded"]
 embedded-hal = "0.2.4"
 lazy_static = "1.4.0"
 libsystemd = "0.2.1"
-mh-z19c = { version = "0.2.0", features = ["std"] }
+mh-z19c = {version = "0.2.0", features = ["std"]}
 nb = "1.0.0"
 prometheus = "0.11.0"
 protobuf = "2.22.0"
-rppal = { version = "0.11.3", features = ["hal"] }
+rppal = {version = "0.11.3", features = ["hal"]}
 tide = "0.16.0"
-tokio = { version = "1.2.0", features = ["macros", "rt", "sync", "time"] }
+tokio = {version = "1.2.0", features = ["macros", "rt", "sync", "time"]}
 
 [dev-dependencies]
 tide-testing = "0.1.3"
