@@ -8,21 +8,21 @@ license = "MIT OR Apache-2.0"
 name = "rpi-mh-z19c-exporter"
 readme = "README.md"
 repository = "https://github.com/jgosmann/rpi-mh-z19c-exporter"
-version = "0.2.1"
+version = "0.2.2"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-embedded-hal = "0.2.4"
+embedded-hal = "0.2.7"
 lazy_static = "1.4.0"
-libsystemd = "0.2.1"
-mh-z19c = {version = "0.2.0", features = ["std"]}
+libsystemd = "0.6.0"
+mh-z19c = {version = "0.3.0", features = ["std"]}
 nb = "1.0.0"
-prometheus = "0.11.0"
-protobuf = "2.22.0"
-rppal = {version = "0.11.3", features = ["hal"]}
+prometheus = "0.13.3"
+protobuf = "2.28.0"
+rppal = {version = "0.14.1", features = ["hal"]}
 tide = "0.16.0"
-tokio = {version = "1.2.0", features = ["macros", "rt", "sync", "time"]}
+tokio = {version = "1.25.0", features = ["macros", "rt", "sync", "time"]}
 
 [dev-dependencies]
 tide-testing = "0.1.3"
